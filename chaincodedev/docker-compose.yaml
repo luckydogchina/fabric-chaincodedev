@@ -1,0 +1,57 @@
+# Copyright IBM Corp. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: '2'
+services:
+  orderer-dev:
+    container_name: orderer-dev
+    image: hyperledger/fabric-orderer:x86_64-1.1.0
+    environment:
+      - ORDERER_GENERAL_LOGLEVEL=debug
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_GENESISFILE=/opt/gopath/src/github.com/hyperledger/fabric/channel/genesis.block
+      - ORDERER_GENERAL_GENESISMETHOD=file
+      - ORDERER_GENERAL_TLS_ENABLED=false
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric
+    command: orderer
+    volumes:
+      - ./channel:/opt/gopath/src/github.com/hyperledger/fabric/channel
+    ports:
+      - 7050:7050
+  peer-dev:
+    container_name: peer-dev
+    image: hyperledger/fabric-peer:x86_64-1.1.0
+    environment:
+      - CORE_ORDERER_ADDRESS=orderer-dev:7050
+      - CORE_LOGGING_LEVEL=DEBUG
+      - CORE_PEER_ID=peer-dev
+      - CORE_PEER_ADDRESS=peer-dev:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer-dev:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=peer-dev:7052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer-dev:7051
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: peer node start --peer-chaincodedev=true
+    depends_on:
+      - orderer-dev
+    ports:
+      - 7051:7051
+      - 7052:7052
+      - 7053:7053
+  cli:
+    container_name: cli
+    tty: true
+    image: hyperledger/fabric-peer:x86_64-1.1.0
+    environment:
+      - GOPATH=/opt/gopath
+      - CORE_LOGGING_LEVEL=DEBUG
+      - CORE_PEER_ID=cli
+      - CORE_PEER_ADDRESS=peer-dev:7051
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: /bin/bash -c './channel/init.sh'
+    volumes:
+      - ./channel:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel
+    depends_on:
+      - orderer-dev
+      - peer-dev
